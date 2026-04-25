@@ -15,7 +15,6 @@ Most note systems optimize for **collecting** information. This one optimizes fo
 ### ├── notes/          # Atomic, durable notes on concepts and ideas
 ### ├── experiments/    # Hands-on tests, prototypes, and their results
 ### ├── literature/     # Notes from books, papers, articles, lectures
-### ├── journal/        # Dated entries — what I worked on, what I learned
 ### ├── questions/      # Open questions I am tracking but cannot yet answer
 ### └── README.md
 
@@ -33,9 +32,6 @@ Anything I tried with my own hands: code spikes, tool comparisons, performance t
 
 ### `literature/`
 Notes on external sources. Each note captures the source's claims **separately** from my reaction to them, so I never confuse what an author said with what I think about it.
-
-### `journal/`
-Dated entries (`YYYY-MM-DD.md`) — short, written the same day. Used to capture friction, surprises, and questions while they are still fresh.
 
 ### `questions/`
 Open questions I cannot yet answer. Promoted to a `note` or `decision` once I find the answer, with a link back to the original question.
