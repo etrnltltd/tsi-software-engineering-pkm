@@ -11,13 +11,13 @@ Most note systems optimize for **collecting** information. This one optimizes fo
 ---
 
 ## Folder Structure
-├── decisions/      # Architectural & personal decision records (ADRs)
-├── notes/          # Atomic, durable notes on concepts and ideas
-├── experiments/    # Hands-on tests, prototypes, and their results
-├── literature/     # Notes from books, papers, articles, lectures
-├── journal/        # Dated entries — what I worked on, what I learned
-├── questions/      # Open questions I am tracking but cannot yet answer
-└── README.md
+### ├── decisions/      # Architectural & personal decision records (ADRs)
+### ├── notes/          # Atomic, durable notes on concepts and ideas
+### ├── experiments/    # Hands-on tests, prototypes, and their results
+### ├── literature/     # Notes from books, papers, articles, lectures
+### ├── journal/        # Dated entries — what I worked on, what I learned
+### ├── questions/      # Open questions I am tracking but cannot yet answer
+### └── README.md
 
 ### `decisions/`
 Records of choices I made and the reasoning behind them. Format: lightweight ADR (Architectural Decision Record).
