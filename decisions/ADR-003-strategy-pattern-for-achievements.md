@@ -1,57 +1,55 @@
-# ADR-003: Use the Strategy Pattern for the Achievement Engine
+# ADR-003: Apply the Strategy Pattern to the Achievement Engine
 
 - **Tags:** taskmaster, architecture, design-patterns, sprint-5
 
 ## Context
 
-Sprint 5 of the MVP roadmap is to build the achievement engine. The plan is to ship 5 working achievements at MVP, but the system is designed to grow — I expect to have 15+ achievements by the end of the project, and more after the course ends.
+The first version of the achievement engine in TaskMaster works, but it's a single 392-line `AchievementService` class. All 16 achievement rules are hardcoded across 7 private `check*` methods. Adding a new achievement means editing this central file, and the rule logic cannot be tested without spinning up the whole Spring context with a database.
 
-Each achievement is a different rule: "complete your first task", "finish 5 tasks in one day", "complete a task before 6 AM", and so on. They look different but answer the same question: *given the user's stats, is this unlocked?*
+The system is meant to grow. The MVP plan calls for at least 5 achievements; the actual implementation already has 15 active rules and one dead one (`consistency` is defined but never checked anywhere — surfaced while preparing this ADR). Post-MVP, more achievements will be added.
 
-I need to pick a structure for this before I start writing code. If I get it wrong, I'll either spend Sprint 5 fighting the design, or I'll have to refactor it later.
+I need a structure that:
+- Makes adding a new achievement cheap.
+- Lets each rule be tested in isolation.
+- Doesn't introduce heavy dependencies.
 
 ## Options I considered
 
-1. **One big `if/else` chain inside `AchievementService`.**
-   Easy to start, but adding a new achievement means editing a central method. Breaks the Open/Closed Principle. Becomes unmanageable past ~5 rules.
+1. **Keep the current `if/else` chain.** Works for now. Becomes worse with every new rule. Already painful at 15.
 
-2. **Strategy pattern — one rule class per achievement.**
-   Each rule is its own small class implementing a common interface. Spring auto-discovers them. Adding a new achievement = adding a new class. No central method to edit.
+2. **Strategy pattern — one rule class per achievement.** Each rule is a small class implementing a common interface. Spring auto-discovers them. Adding a rule = adding a file. No edits to existing code.
 
-3. **Chain of Responsibility.**
-   Rules pass the request along the chain. Overkill — the rules are independent and don't need ordering or short-circuiting.
+3. **Chain of Responsibility.** Rules pass the request along the chain. Overkill — the rules are independent and don't depend on order.
 
-4. **Rule engine library (Drools, Easy Rules).**
-   Industry-grade, but massive overkill for 15 rules. New dependency, new DSL to learn, more deployment complexity. Wrong tool for a course project.
+4. **Rule engine library (Drools, Easy Rules).** Industry-grade, but massive overkill for 15 rules. New dependency, new DSL, more deployment complexity. Wrong tool for a course project.
 
-5. **Observer pattern.**
-   Right pattern for *notifying* about unlocks (toast, email). Wrong pattern for *deciding* unlocks. I might use Observer later for the notification side.
+5. **Observer pattern.** Right pattern for *notifying* about unlocks (toast, email). Wrong pattern for *deciding* unlocks. The frontend already uses event-based notifications, so Observer would be the right tool for that side later.
 
 ## Decision
 
 Option 2 — **Strategy pattern**.
 
-The rule logic lives in `com.example.demo.service.achievement`:
-- `AchievementRule` interface with `achievementId()` and `isMet(UserStats)`.
-- `AchievementChecker` as the context — Spring auto-injects a `List<AchievementRule>`.
-- `UserStats` as an immutable input record.
-- `UserStatsBuilder` is the only class allowed to read from repositories.
-- Each achievement gets its own `@Component` class under `rules/`.
+A new sub-package `com.example.demo.service.achievement` contains:
+- `AchievementRule` — interface with `achievementId()` and `isMet(UserStats)`.
+- `AchievementChecker` — Strategy context. Spring auto-injects `List<AchievementRule>`. Pure function: no DB, no logging, no I/O.
+- `UserStats` — immutable record holding all numbers a rule could need.
+- `UserStatsBuilder` — the only class allowed to read from repositories.
+- `rules/` — one `@Component` class per achievement (15 files).
 
-The `AchievementChecker` is a **pure function**: no DB calls, no logging, no I/O. Same input always returns the same output.
+The existing `AchievementService.checkAndGrantAchievements(User, Task)` keeps its signature (so `TaskService` doesn't change) but its body is reduced to: build stats → call checker → loop through returned IDs and call the existing `unlockAchievement(user, id)`.
 
 ## Consequences
 
 **Positive:**
-- Adding a new achievement = adding a new class. No edits to existing code.
-- Each rule is testable on its own without a database or mocks.
-- The pure-function checker can be reused for a future "preview my next achievement" feature without rewriting.
-- Forces a clear separation between *deciding* unlocks (pure) and *persisting* them (side-effectful).
+- Adding a new achievement = adding a new class. No edits to `AchievementService`.
+- Rules become unit-testable without the database.
+- The `UserStats` snapshot is built once per check instead of each rule querying the DB independently. Fewer DB calls.
+- The pure-function checker can be reused for a "preview my next achievement" feature later.
 
 **Negative:**
-- More files than a single-class approach. For a 5-rule MVP this is a real cost.
+- More files than before. For a 5-rule prototype this would be overhead. With 15+ rules it pays off.
 - Slight learning curve for anyone unfamiliar with the pattern (mitigated by the module README).
 
-**Mitigation for the "more files" cost:**
-- Each rule file is ~10 lines, so the file count is high but the total code volume is the same.
-- The benefit kicks in around rule #5 and grows from there. By the time the project ends, the call will look obvious.
+**Mitigation:**
+- Each rule file is ~10 lines, so file count is high but total code volume is the same.
+- `consistency` is left out of the new module on purpose — it's dead code in the original. Filed as a separate follow-up: build streak tracking properly so it can actually unlock.
